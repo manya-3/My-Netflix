@@ -83,10 +83,11 @@ window.addEventListener('scroll', () => {
 
 // ── TABS ─────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
+  tab.addEventListener('click', async () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     const v = tab.dataset.view;
+    await refreshMediaData();
     if (v === 'home') showHome();
     else showLibrary(v);
   });
@@ -143,6 +144,11 @@ function showLibrary(type) {
 
 // ── LOAD MEDIA ───────────────────────────────────────────
 async function loadMedia() {
+  await refreshMediaData();
+  showHome();
+}
+
+async function refreshMediaData() {
   try {
     const res = await fetch('/api/media');
     const data = await res.json();
@@ -153,7 +159,6 @@ async function loadMedia() {
   } catch (e) {
     items = [];
   }
-  showHome();
 }
 
 // ── HERO ─────────────────────────────────────────────────
