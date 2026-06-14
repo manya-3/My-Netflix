@@ -2,7 +2,6 @@
 
 // ── STATE ─────────────────────────────────────────────────
 let items = [];
-let favoriteIds = [];
 let currentView = 'home';
 let photoList = [];
 let photoIndex = 0;
@@ -16,8 +15,6 @@ const profile = JSON.parse(sessionStorage.getItem('netflix_profile') || 'null');
 if (sessionStorage.getItem('netflix_auth') !== '1' || !profile || !profile.id) {
   window.location.href = '/';
 }
-const favKey = 'nf_favs_' + profile.id;
-favoriteIds = JSON.parse(localStorage.getItem(favKey) || '[]');
 
 // ── DOM ───────────────────────────────────────────────────
 const mainNav       = document.getElementById('mainNav');
@@ -131,7 +128,7 @@ function showLibrary(type) {
     filtered = items.filter(i => i.type === 'video');
     libraryTitle.textContent = 'Videos';
   } else {
-    filtered = items.filter(i => favoriteIds.includes(i.id));
+    filtered = items.filter(i => i.isFavorite);
     libraryTitle.textContent = "My Fav's";
   }
 
@@ -149,7 +146,10 @@ async function loadMedia() {
   try {
     const res = await fetch('/api/media');
     const data = await res.json();
-    items = data.items || [];
+    items = (data.items || []).map(item => ({
+      ...item,
+      isFavorite: !!item.isFavorite
+    }));
   } catch (e) {
     items = [];
   }
@@ -207,7 +207,7 @@ function renderRows(all) {
   const videos = all.filter(i => i.type === 'video');
   const photos = all.filter(i => i.type === 'photo');
   const recent = all.slice(0, 12);
-  const favs   = all.filter(i => favoriteIds.includes(i.id));
+  const favs   = all.filter(i => i.isFavorite);
 
   emptyHome.classList.toggle('nf-hidden', all.length > 0);
   fillRow(recentRow, recent, all); recentSection.classList.toggle('nf-hidden', recent.length === 0);
@@ -254,12 +254,13 @@ function createCard(item, ctx) {
   info.appendChild(t); info.appendChild(ty);
 
   const fav = document.createElement('button');
-  fav.className = 'fav-btn' + (favoriteIds.includes(item.id) ? ' fav-active' : '');
+  fav.className = 'fav-btn' + (item.isFavorite ? ' fav-active' : '');
   fav.innerHTML = '&#10084;'; fav.title = 'Toggle Favorite';
-  fav.addEventListener('click', e => {
+  fav.addEventListener('click', async e => {
     e.stopPropagation();
-    toggleFavorite(item.id);
-    fav.classList.toggle('fav-active', favoriteIds.includes(item.id));
+    await toggleFavorite(item.id);
+    const updated = items.find(i => i.id === item.id);
+    fav.classList.toggle('fav-active', !!(updated && updated.isFavorite));
   });
 
   const del = document.createElement('button');
@@ -290,12 +291,36 @@ function createCard(item, ctx) {
 }
 
 // ── FAVORITES ────────────────────────────────────────────
-function toggleFavorite(id) {
-  const idx = favoriteIds.indexOf(id);
-  if (idx >= 0) favoriteIds.splice(idx, 1); else favoriteIds.push(id);
-  localStorage.setItem(favKey, JSON.stringify(favoriteIds));
+async function toggleFavorite(id) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+
+  const nextValue = !item.isFavorite;
+
+  try {
+    const res = await fetch('/api/media/' + encodeURIComponent(id) + '/favorite', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFavorite: nextValue })
+    });
+
+    if (!res.ok) {
+      alert('Could not update favorite. Try again.');
+      return;
+    }
+
+    items = items.map(i => (i.id === id ? { ...i, isFavorite: nextValue } : i));
+    photoList = photoList.map(i => (i.id === id ? { ...i, isFavorite: nextValue } : i));
+    if (currentVideoItem && currentVideoItem.id === id) {
+      currentVideoItem = { ...currentVideoItem, isFavorite: nextValue };
+    }
+  } catch {
+    alert('Could not update favorite. Try again.');
+    return;
+  }
+
   if (currentView === 'home') {
-    const favs = items.filter(i => favoriteIds.includes(i.id));
+    const favs = items.filter(i => i.isFavorite);
     fillRow(favsRow, favs, items);
     favsSection.classList.toggle('nf-hidden', favs.length === 0);
   }
@@ -309,9 +334,6 @@ async function deleteMedia(id) {
       alert('Delete failed. Try again.');
       return;
     }
-
-    favoriteIds = favoriteIds.filter(favId => favId !== id);
-    localStorage.setItem(favKey, JSON.stringify(favoriteIds));
 
     if (currentVideoItem && currentVideoItem.id === id) {
       playerVid.pause();
@@ -351,7 +373,7 @@ function renderPhoto() {
   photoTitleLbl.textContent = item.title || item.originalname || 'Untitled';
   document.getElementById('photoCounter').textContent =
     (photoIndex + 1) + ' / ' + photoList.length;
-  photoFavBtn.className = 'fav-circle' + (favoriteIds.includes(item.id) ? ' fav-active' : '');
+  photoFavBtn.className = 'fav-circle' + (item.isFavorite ? ' fav-active' : '');
   document.getElementById('photoPrev').classList.toggle('nf-hidden', photoIndex === 0);
   document.getElementById('photoNext').classList.toggle('nf-hidden', photoIndex === photoList.length - 1);
 }
@@ -365,10 +387,11 @@ document.getElementById('photoPrev').addEventListener('click', () => {
 document.getElementById('photoNext').addEventListener('click', () => {
   if (photoIndex < photoList.length - 1) { photoIndex++; renderPhoto(); }
 });
-photoFavBtn.addEventListener('click', () => {
+photoFavBtn.addEventListener('click', async () => {
   const item = photoList[photoIndex]; if (!item) return;
-  toggleFavorite(item.id);
-  photoFavBtn.className = 'fav-circle' + (favoriteIds.includes(item.id) ? ' fav-active' : '');
+  await toggleFavorite(item.id);
+  const updated = items.find(i => i.id === item.id);
+  photoFavBtn.className = 'fav-circle' + ((updated && updated.isFavorite) ? ' fav-active' : '');
 });
 
 photoDeleteBtn.addEventListener('click', async () => {
@@ -394,7 +417,7 @@ function openVideoPlayer(item) {
 
 function syncVidFavBtn() {
   if (!currentVideoItem) return;
-  ctrlVidFav.classList.toggle('fav-active', favoriteIds.includes(currentVideoItem.id));
+  ctrlVidFav.classList.toggle('fav-active', !!currentVideoItem.isFavorite);
 }
 
 document.getElementById('playerBack').addEventListener('click', () => {
@@ -429,9 +452,9 @@ ctrlFullscreen.addEventListener('click', () => {
   else document.exitFullscreen();
 });
 
-ctrlVidFav.addEventListener('click', () => {
+ctrlVidFav.addEventListener('click', async () => {
   if (!currentVideoItem) return;
-  toggleFavorite(currentVideoItem.id);
+  await toggleFavorite(currentVideoItem.id);
   syncVidFavBtn();
 });
 

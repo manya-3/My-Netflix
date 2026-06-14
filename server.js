@@ -7,13 +7,16 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ensure directories exist
-const uploadsDir = path.join(__dirname, 'uploads');
-const dataFile    = path.join(__dirname, 'data', 'media.json');
-const profilesFile = path.join(__dirname, 'data', 'profiles.json');
+// Allow persistent storage root on cloud hosts (for example, a mounted disk).
+const storageRoot = process.env.DATA_ROOT
+  ? path.resolve(process.env.DATA_ROOT)
+  : __dirname;
+const uploadsDir = path.join(storageRoot, 'uploads');
+const dataDir = path.join(storageRoot, 'data');
+const dataFile = path.join(dataDir, 'media.json');
+const profilesFile = path.join(dataDir, 'profiles.json');
 
-['uploads/videos', 'uploads/photos', 'data'].forEach(dir => {
-  const fullPath = path.join(__dirname, dir);
+[path.join(uploadsDir, 'videos'), path.join(uploadsDir, 'photos'), dataDir].forEach(fullPath => {
   if (!fs.existsSync(fullPath)) fs.mkdirSync(fullPath, { recursive: true });
 });
 
@@ -170,6 +173,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       id: uuidv4(),
       title: req.body.title || path.basename(req.file.originalname, path.extname(req.file.originalname)),
       type,
+      isFavorite: false,
       profileId,
       filename: req.file.filename,
       originalname: req.file.originalname,
@@ -185,6 +189,22 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     res.json({ success: true, item });
   } catch (e) {
     res.status(500).json({ error: 'Upload failed: ' + e.message });
+  }
+});
+
+// PATCH toggle favorite (server-side, shared across devices)
+app.patch('/api/media/:id/favorite', (req, res) => {
+  try {
+    const data = readData();
+    const item = data.items.find(i => i.id === req.params.id);
+    if (!item) return res.status(404).json({ error: 'Not found.' });
+
+    item.isFavorite = !!(req.body && req.body.isFavorite);
+    writeData(data);
+
+    res.json({ success: true, item });
+  } catch (e) {
+    res.status(500).json({ error: 'Favorite update failed: ' + e.message });
   }
 });
 
