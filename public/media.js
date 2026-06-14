@@ -147,7 +147,7 @@ function showLibrary(type) {
 // ── LOAD MEDIA ───────────────────────────────────────────
 async function loadMedia() {
   try {
-    const res = await fetch('/api/media?profileId=' + encodeURIComponent(profile.id));
+    const res = await fetch('/api/media');
     const data = await res.json();
     items = data.items || [];
   } catch (e) {
