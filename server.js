@@ -5,7 +5,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Ensure directories exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -25,7 +25,7 @@ if (!fs.existsSync(profilesFile)) {
 }
 
 // Password (stored server-side)
-const APP_PASSWORD = '030505';
+const APP_PASSWORD = process.env.APP_PASSWORD || '030505';
 
 function normalizePassword(value) {
   // Handles pasted values that may include non-standard spaces or unicode variants.
