@@ -62,11 +62,15 @@
     let manageMode = false;
 
     function getProfilePin(profile) {
+      if (profile.name !== 'WTF') {
+        return '';
+      }
+
       const storageKey = `nf_profile_pin_${profile.id}`;
       let pin = localStorage.getItem(storageKey);
 
       // Auto-assign requested lock for WTF profile if not set yet.
-      if (!pin && profile.name === 'WTF') {
+      if (!pin) {
         pin = '181005';
         localStorage.setItem(storageKey, pin);
       }

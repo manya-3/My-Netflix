@@ -199,6 +199,11 @@ app.patch('/api/media/:id/favorite', (req, res) => {
     const item = data.items.find(i => i.id === req.params.id);
     if (!item) return res.status(404).json({ error: 'Not found.' });
 
+    const profileId = String((req.body && req.body.profileId) || '').trim();
+    if (profileId && item.profileId !== profileId) {
+      return res.status(403).json({ error: 'Forbidden for this profile.' });
+    }
+
     item.isFavorite = !!(req.body && req.body.isFavorite);
     writeData(data);
 
@@ -216,6 +221,11 @@ app.delete('/api/media/:id', (req, res) => {
     if (idx === -1) return res.status(404).json({ error: 'Not found.' });
 
     const item = data.items[idx];
+    const profileId = String(req.query.profileId || '').trim();
+    if (profileId && item.profileId !== profileId) {
+      return res.status(403).json({ error: 'Forbidden for this profile.' });
+    }
+
     const subDir = item.type === 'video' ? 'videos' : 'photos';
     const filePath = path.join(uploadsDir, subDir, item.filename);
 

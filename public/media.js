@@ -150,7 +150,7 @@ async function loadMedia() {
 
 async function refreshMediaData() {
   try {
-    const res = await fetch('/api/media');
+    const res = await fetch('/api/media?profileId=' + encodeURIComponent(profile.id));
     const data = await res.json();
     items = (data.items || []).map(item => ({
       ...item,
@@ -306,7 +306,7 @@ async function toggleFavorite(id) {
     const res = await fetch('/api/media/' + encodeURIComponent(id) + '/favorite', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isFavorite: nextValue })
+      body: JSON.stringify({ isFavorite: nextValue, profileId: profile.id })
     });
 
     if (!res.ok) {
@@ -334,7 +334,9 @@ async function toggleFavorite(id) {
 
 async function deleteMedia(id) {
   try {
-    const res = await fetch('/api/media/' + encodeURIComponent(id), { method: 'DELETE' });
+    const res = await fetch('/api/media/' + encodeURIComponent(id) + '?profileId=' + encodeURIComponent(profile.id), {
+      method: 'DELETE'
+    });
     if (!res.ok) {
       alert('Delete failed. Try again.');
       return;
