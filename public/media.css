@@ -290,8 +290,48 @@ body{background:var(--bg);color:var(--text);font-family:'Helvetica Neue',Helveti
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
-  .nav-tabs .tab:nth-child(n+4){display:none}
-  .logo{font-size:1.5rem}
+  .nav{
+    padding:10px 12px;
+    flex-direction:column;
+    align-items:stretch;
+    gap:8px;
+    background:var(--bg);
+  }
+  .nav-left{
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .logo{font-size:1.35rem}
+  .nav-tabs{
+    width:100%;
+    overflow-x:auto;
+    white-space:nowrap;
+    padding-bottom:4px;
+    scrollbar-width:none;
+  }
+  .nav-tabs::-webkit-scrollbar{display:none}
+  .nav-tabs .tab{flex:0 0 auto;font-size:.84rem}
+  .nav-right{
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+  .profile-chip{
+    grid-column:1 / -1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .btn-red,.btn-ghost{
+    width:100%;
+    height:34px;
+    padding:0 10px;
+    font-size:.8rem;
+  }
+  #homeView{padding-top:122px}
+  .lib-header{padding:152px 4% 22px}
+  .hero{height:62vh;min-height:360px}
   .card{flex-basis:155px}
   .lib-grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px}
   .vol-slider{width:60px}
