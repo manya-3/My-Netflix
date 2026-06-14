@@ -1,0 +1,18 @@
+{
+  "profiles": [
+    {
+      "id": "cbe1a7ab-ab66-4036-a714-5d6ba3f29e57",
+      "name": "Me",
+      "color": "#e932ec",
+      "emoji": "😊",
+      "createdAt": "2026-06-14T18:28:29.311Z"
+    },
+    {
+      "id": "120ded06-cbff-4c8a-adc6-1f4ffdad1730",
+      "name": "WTF",
+      "color": "#f8eb59",
+      "emoji": "🤙",
+      "createdAt": "2026-06-14T19:44:39.092Z"
+    }
+  ]
+}

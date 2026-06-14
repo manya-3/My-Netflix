@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "id": "ca888f85-f5d6-48f5-8168-9d61e3375101",
+      "title": "Screenshot 2026-05-12 152358",
+      "type": "photo",
+      "filename": "c28cc042-4601-4470-b21f-1e0d8370bf26.png",
+      "originalname": "Screenshot 2026-05-12 152358.png",
+      "url": "/uploads/photos/c28cc042-4601-4470-b21f-1e0d8370bf26.png",
+      "size": 61272,
+      "uploadedAt": "2026-06-14T18:34:03.931Z"
+    },
+    {
+      "id": "58e35ff3-32f3-4760-a1a0-da5fe66f5b31",
+      "title": "Hehe",
+      "type": "photo",
+      "filename": "05b90adb-7e74-44b6-b023-999c039b45ef.png",
+      "originalname": "Screenshot 2026-05-07 224011.png",
+      "url": "/uploads/photos/05b90adb-7e74-44b6-b023-999c039b45ef.png",
+      "size": 102579,
+      "uploadedAt": "2026-06-14T18:33:51.043Z"
+    },
+    {
+      "id": "c0027aa5-2bc6-414c-bd2d-928dc793ac12",
+      "title": "Screenshot 2026-05-14 204128",
+      "type": "photo",
+      "filename": "f2bf98d0-6d08-4664-aea6-86cc054f374b.png",
+      "originalname": "Screenshot 2026-05-14 204128.png",
+      "url": "/uploads/photos/f2bf98d0-6d08-4664-aea6-86cc054f374b.png",
+      "size": 25837,
+      "uploadedAt": "2026-06-14T18:33:40.869Z"
+    },
+    {
+      "id": "21b66664-7471-4f4b-ad39-07e39c569d33",
+      "title": "memory decrease",
+      "type": "video",
+      "filename": "8ff91858-e3b0-49dc-85dc-7564653c27d8.mp4",
+      "originalname": "memory decrease.mp4",
+      "url": "/uploads/videos/8ff91858-e3b0-49dc-85dc-7564653c27d8.mp4",
+      "size": 57490309,
+      "uploadedAt": "2026-06-14T18:32:57.741Z"
+    },
+    {
+      "id": "37e39186-5cf5-4c0b-926a-345cc282f385",
+      "title": "photo",
+      "type": "photo",
+      "filename": "a183c16f-fc7f-47e1-8324-9afa04f8d4ae.jpg",
+      "originalname": "photo.jpg",
+      "url": "/uploads/photos/a183c16f-fc7f-47e1-8324-9afa04f8d4ae.jpg",
+      "size": 297716,
+      "uploadedAt": "2026-06-14T18:32:37.812Z"
+    }
+  ]
+}

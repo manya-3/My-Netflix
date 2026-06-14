@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netflix Sign In</title>
+  <script>
+    (function forceNodeServer() {
+      if (location.protocol === 'http:' && location.port && location.port !== '3000') {
+        location.replace('http://localhost:3000/');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">NETFLIX</h1>
+  </header>
+
+  <main class="signin-wrap">
+    <section class="signin-card">
+      <h2>Sign In</h2>
+      <p class="subtitle">Enter your password to continue</p>
+      <form id="signinForm">
+        <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password" maxlength="20" />
+        <button id="signinBtn" type="submit">Sign In</button>
+      </form>
+      <p id="errorText" class="error-text"></p>
+      <p class="help">Password hint: Try chey ra chey nuv!!!</p>
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('signinForm');
+    const passwordInput = document.getElementById('passwordInput');
+    const signinBtn = document.getElementById('signinBtn');
+    const errorText = document.getElementById('errorText');
+
+    // Already authenticated in this browser session.
+    if (sessionStorage.getItem('netflix_auth') === '1') {
+      if (sessionStorage.getItem('netflix_profile')) {
+        window.location.href = '/media.html';
+      } else {
+        window.location.href = '/home.html';
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const password = String(passwordInput.value || '')
+        .normalize('NFKC')
+        .replace(/\s+/g, '')
+        .trim();
+
+      errorText.textContent = '';
+      signinBtn.disabled = true;
+      signinBtn.textContent = 'Checking...';
+
+      try {
+        const response = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        if (response.ok) {
+          sessionStorage.setItem('netflix_auth', '1');
+          window.location.href = '/home.html';
+          return;
+        }
+
+        errorText.textContent = 'Incorrect password. No entry.';
+      } catch {
+        errorText.textContent = 'Server not reachable. Start node server first.';
+      } finally {
+        signinBtn.disabled = false;
+        signinBtn.textContent = 'Sign In';
+      }
+    });
+  </script>
+</body>
+</html>

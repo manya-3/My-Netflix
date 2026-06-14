@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Who Is Watching</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">NETFLIX</h1>
+    <button id="logoutBtn" class="topbar-btn" type="button">Sign Out</button>
+  </header>
+
+  <main class="profiles-wrap">
+    <section class="profiles-panel">
+      <h2>Who's watching?</h2>
+      <div id="profilesGrid" class="profiles-grid"></div>
+
+      <div class="profiles-actions">
+        <button id="addProfileBtn" class="secondary-btn" type="button">Add Profile</button>
+        <button id="manageBtn" class="secondary-btn" type="button">Manage Profiles</button>
+      </div>
+
+      <p id="selectedText" class="selected-text"></p>
+    </section>
+  </main>
+
+  <div id="addModal" class="modal hidden">
+    <div class="modal-card">
+      <h3>Create Profile</h3>
+      <form id="addForm" class="add-form">
+        <input id="nameInput" type="text" placeholder="Profile name" maxlength="30" required />
+        <input id="emojiInput" type="text" placeholder="Emoji (example: 😊)" maxlength="2" value="😊" />
+        <label class="color-label">Avatar Color <input id="colorInput" type="color" value="#e50914" /></label>
+        <p id="modalError" class="error-text"></p>
+        <div class="modal-actions">
+          <button type="button" id="cancelAdd" class="secondary-btn">Cancel</button>
+          <button type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    if (sessionStorage.getItem('netflix_auth') !== '1') {
+      window.location.href = '/';
+    }
+
+    const profilesGrid = document.getElementById('profilesGrid');
+    const addProfileBtn = document.getElementById('addProfileBtn');
+    const manageBtn = document.getElementById('manageBtn');
+    const selectedText = document.getElementById('selectedText');
+    const addModal = document.getElementById('addModal');
+    const addForm = document.getElementById('addForm');
+    const cancelAdd = document.getElementById('cancelAdd');
+    const nameInput = document.getElementById('nameInput');
+    const emojiInput = document.getElementById('emojiInput');
+    const colorInput = document.getElementById('colorInput');
+    const modalError = document.getElementById('modalError');
+
+    let manageMode = false;
+
+    function getProfilePin(profile) {
+      const storageKey = `nf_profile_pin_${profile.id}`;
+      let pin = localStorage.getItem(storageKey);
+
+      // Auto-assign requested lock for WTF profile if not set yet.
+      if (!pin && profile.name === 'WTF') {
+        pin = '181005';
+        localStorage.setItem(storageKey, pin);
+      }
+
+      return pin || '';
+    }
+
+    function verifyProfilePin(profile) {
+      const pin = getProfilePin(profile);
+      if (!pin) return true;
+
+      const entered = String(prompt(`Enter password for ${profile.name}:`) || '').trim();
+      if (entered !== pin) {
+        alert('Incorrect password. No entry.');
+        return false;
+      }
+      return true;
+    }
+
+    async function loadProfiles() {
+      try {
+        const res = await fetch('/api/profiles');
+        const data = await res.json();
+        renderProfiles(data.profiles || []);
+      } catch {
+        profilesGrid.innerHTML = '<p class="error-text">Could not load profiles.</p>';
+      }
+    }
+
+    function renderProfiles(profiles) {
+      profilesGrid.innerHTML = '';
+
+      if (!profiles.length) {
+        selectedText.textContent = 'No profiles yet. Create your first profile.';
+      }
+
+      for (const profile of profiles) {
+        const card = document.createElement('button');
+        card.className = 'profile-card';
+        card.type = 'button';
+
+        card.innerHTML = `
+          <span class="avatar" style="background:${profile.color || '#e50914'}">${profile.emoji || '😊'}</span>
+          <span class="profile-name">${profile.name}</span>
+          <span class="delete-mark ${manageMode ? '' : 'hidden'}" title="Delete profile">Delete</span>
+        `;
+
+        card.addEventListener('click', async (event) => {
+          if (manageMode) {
+            const deleteEl = event.target.closest('.delete-mark');
+            if (deleteEl) {
+              await deleteProfile(profile.id);
+            }
+            return;
+          }
+
+          if (!verifyProfilePin(profile)) {
+            return;
+          }
+
+          selectedText.textContent = `Now watching: ${profile.name}`;
+          sessionStorage.setItem('netflix_profile', JSON.stringify(profile));
+          window.location.href = '/media.html';
+        });
+
+        profilesGrid.appendChild(card);
+      }
+
+      const addCard = document.createElement('button');
+      addCard.className = 'profile-card add-card';
+      addCard.type = 'button';
+      addCard.innerHTML = '<span class="avatar">+</span><span class="profile-name">Add Profile</span>';
+      addCard.addEventListener('click', openAddModal);
+      profilesGrid.appendChild(addCard);
+    }
+
+    async function deleteProfile(id) {
+      const ok = window.confirm('Delete this profile? All media in this profile will also be removed.');
+      if (!ok) return;
+
+      try {
+        await fetch(`/api/profiles/${id}`, { method: 'DELETE' });
+        localStorage.removeItem(`nf_profile_pin_${id}`);
+        await loadProfiles();
+      } catch {
+        selectedText.textContent = 'Delete failed. Try again.';
+      }
+    }
+
+    function openAddModal() {
+      modalError.textContent = '';
+      nameInput.value = '';
+      emojiInput.value = '😊';
+      colorInput.value = '#e50914';
+      addModal.classList.remove('hidden');
+      nameInput.focus();
+    }
+
+    function closeAddModal() {
+      addModal.classList.add('hidden');
+    }
+
+    addProfileBtn.addEventListener('click', openAddModal);
+    cancelAdd.addEventListener('click', closeAddModal);
+    addModal.addEventListener('click', (event) => {
+      if (event.target === addModal) closeAddModal();
+    });
+
+    addForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      modalError.textContent = '';
+      const payload = {
+        name: nameInput.value.trim(),
+        emoji: (emojiInput.value || '😊').trim(),
+        color: colorInput.value || '#e50914'
+      };
+
+      if (!payload.name) {
+        modalError.textContent = 'Profile name is required.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          modalError.textContent = data.error || 'Could not create profile.';
+          return;
+        }
+
+        closeAddModal();
+        await loadProfiles();
+      } catch {
+        modalError.textContent = 'Network error. Try again.';
+      }
+    });
+
+    manageBtn.addEventListener('click', async () => {
+      manageMode = !manageMode;
+      manageBtn.textContent = manageMode ? 'Done' : 'Manage Profiles';
+      selectedText.textContent = manageMode ? 'Manage mode: click × to delete.' : '';
+      await loadProfiles();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      sessionStorage.removeItem('netflix_auth');
+      sessionStorage.removeItem('netflix_profile');
+      window.location.href = '/';
+    });
+
+    loadProfiles();
+  </script>
+</body>
+</html>

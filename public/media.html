@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netflix Media</title>
+  <link rel="stylesheet" href="media.css" />
+</head>
+<body>
+
+  <!-- ── NAV ── -->
+  <header class="nav" id="mainNav">
+    <div class="nav-left">
+      <button id="backBtn" class="back-btn nf-hidden">&#8592;</button>
+      <h1 class="logo">NETFLIX</h1>
+      <nav class="nav-tabs">
+        <button class="tab active" data-view="home">Home</button>
+        <button class="tab" data-view="photos">Photos</button>
+        <button class="tab" data-view="videos">Videos</button>
+        <button class="tab" data-view="favs">My Fav's</button>
+      </nav>
+    </div>
+    <div class="nav-right">
+      <span id="profileName" class="profile-chip"></span>
+      <button id="uploadBtn" class="btn-red">+ Upload</button>
+      <button id="switchProfileBtn" class="btn-ghost">Profiles</button>
+      <button id="signoutBtn" class="btn-ghost">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- ── HOME VIEW ── -->
+  <div id="homeView">
+    <section class="hero" id="hero">
+      <div class="hero-bg">
+        <video id="heroVideo" class="hero-media" muted loop playsinline></video>
+        <img id="heroImage" class="hero-media nf-hidden" alt="" />
+      </div>
+      <div class="hero-vignette"></div>
+      <div class="hero-content">
+        <h2 id="heroTitle"></h2>
+        <p id="heroMeta"></p>
+        <div class="hero-btns">
+          <button id="heroPlayBtn" class="btn-white">&#9654; Play</button>
+          <button id="heroUploadBtn" class="btn-semi">+ Upload New</button>
+        </div>
+      </div>
+      <button id="heroMuteBtn" class="hero-mute-btn nf-hidden" title="Toggle mute">
+        <span id="heroMuteIcon">&#128264;</span>
+      </button>
+    </section>
+
+    <main class="content" id="mainContent">
+      <section id="recentSection" class="row-section nf-hidden">
+        <h3>Recently Added</h3>
+        <div class="row-shell">
+          <button class="row-arrow arr-left" data-row="recentRow">&#8249;</button>
+          <div id="recentRow" class="row"></div>
+          <button class="row-arrow arr-right" data-row="recentRow">&#8250;</button>
+        </div>
+      </section>
+      <section id="videosSection" class="row-section nf-hidden">
+        <h3>My Videos</h3>
+        <div class="row-shell">
+          <button class="row-arrow arr-left" data-row="videosRow">&#8249;</button>
+          <div id="videosRow" class="row"></div>
+          <button class="row-arrow arr-right" data-row="videosRow">&#8250;</button>
+        </div>
+      </section>
+      <section id="photosSection" class="row-section nf-hidden">
+        <h3>My Photos</h3>
+        <div class="row-shell">
+          <button class="row-arrow arr-left" data-row="photosRow">&#8249;</button>
+          <div id="photosRow" class="row"></div>
+          <button class="row-arrow arr-right" data-row="photosRow">&#8250;</button>
+        </div>
+      </section>
+      <section id="favsSection" class="row-section nf-hidden">
+        <h3>My Fav's</h3>
+        <div class="row-shell">
+          <button class="row-arrow arr-left" data-row="favsRow">&#8249;</button>
+          <div id="favsRow" class="row"></div>
+          <button class="row-arrow arr-right" data-row="favsRow">&#8250;</button>
+        </div>
+      </section>
+      <div id="emptyHome" class="empty-state nf-hidden">
+        <div class="empty-icon">&#127916;</div>
+        <h3>No media yet</h3>
+        <p>Upload your first photo or video to get started.</p>
+        <button id="emptyHomeUpload" class="btn-red">Upload Media</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── LIBRARY VIEW (Photos / Videos / Favs full page) ── -->
+  <div id="libraryView" class="nf-hidden">
+    <div class="lib-header"><h2 id="libraryTitle">Photos</h2></div>
+    <div id="libraryGrid" class="lib-grid"></div>
+    <div id="emptyLibrary" class="empty-state nf-hidden">
+      <div class="empty-icon">&#128194;</div>
+      <p id="emptyLibMsg">Nothing here yet.</p>
+    </div>
+  </div>
+
+  <!-- ── PHOTO VIEWER ── -->
+  <div id="photoViewer" class="fullscreen-ov nf-hidden">
+    <div class="photo-top-bar">
+      <button id="photoBack" class="ov-back">&#8592; Back</button>
+      <span id="photoCounter" class="photo-counter"></span>
+    </div>
+    <button id="photoPrev" class="photo-nav nav-prev">&#8249;</button>
+    <div id="photoDisplay" class="photo-display"></div>
+    <button id="photoNext" class="photo-nav nav-next">&#8250;</button>
+    <div class="photo-bar">
+      <span id="photoTitleLbl"></span>
+      <button id="photoFavBtn" class="fav-circle">&#10084;</button>
+      <button id="photoDeleteBtn" class="danger-pill" type="button">Delete</button>
+    </div>
+  </div>
+
+  <!-- ── VIDEO PLAYER ── -->
+  <div id="videoPlayer" class="fullscreen-ov nf-hidden">
+    <video id="playerVid" class="player-vid"></video>
+    <div id="ctrlWrap" class="ctrl-wrap">
+      <div class="ctrl-top">
+        <button id="playerBack" class="ov-back">&#8592; <span id="playerTitleLbl"></span></button>
+      </div>
+      <div id="ctrlClickZone" class="ctrl-click-zone"></div>
+      <div class="ctrl-bottom">
+        <div class="prog-row">
+          <span id="timeCur" class="time-lbl">0:00</span>
+          <div id="progBar" class="prog-bar">
+            <div id="progFill" class="prog-fill"></div>
+            <div id="progHandle" class="prog-handle"></div>
+          </div>
+          <span id="timeDur" class="time-lbl">0:00</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-g">
+            <button id="ctrlPlay" class="ctrl-btn" title="Play / Pause">&#9654;</button>
+            <button id="ctrlRew" class="ctrl-btn ctrl-skip" title="Rewind 10s">&#8592;10</button>
+            <button id="ctrlFwd" class="ctrl-btn ctrl-skip" title="Forward 10s">10&#8594;</button>
+            <button id="ctrlMute" class="ctrl-btn" title="Mute / Unmute">&#128266;</button>
+            <input id="volSlider" class="vol-slider" type="range" min="0" max="1" step="0.05" value="1" />
+          </div>
+          <div class="ctrl-g">
+            <button id="ctrlVidFav" class="ctrl-btn ctrl-fav" title="Favorite">&#10084;</button>
+            <button id="ctrlVidDelete" class="ctrl-btn ctrl-delete" title="Delete">Delete</button>
+            <select id="ctrlSpeed" class="ctrl-speed">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2x</option>
+            </select>
+            <button id="ctrlFullscreen" class="ctrl-btn" title="Fullscreen">&#9974;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── UPLOAD MODAL ── -->
+  <div id="uploadModal" class="modal-shade nf-hidden">
+    <div class="modal-box">
+      <h3>Upload Media</h3>
+      <form id="uploadForm" class="upload-form">
+        <input id="fileInput" type="file" accept="image/*,video/*" required />
+        <input id="titleInput" type="text" placeholder="Title (optional)" maxlength="100" />
+        <p id="uploadMsg" class="up-msg"></p>
+        <div class="modal-actions">
+          <button id="cancelUpload" type="button" class="btn-ghost">Cancel</button>
+          <button id="submitUpload" type="submit" class="btn-red">Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="media.js"></script>
+</body>
+</html>
