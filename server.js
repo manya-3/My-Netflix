@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { MongoClient } = require('mongodb');
+const mysql = require('mysql2/promise');
 const { v2: cloudinary } = require('cloudinary');
 
 const app = express();
@@ -12,13 +13,20 @@ const APP_PASSWORD = process.env.APP_PASSWORD || '030505';
 
 const MONGO_URI = (process.env.MONGO_URI || '').trim();
 const MONGO_DB_NAME = (process.env.MONGO_DB_NAME || 'my_netflix').trim();
+const MYSQL_URL = (process.env.MYSQL_URL || '').trim();
+const MYSQL_HOST = (process.env.MYSQL_HOST || '').trim();
+const MYSQL_PORT = Number(process.env.MYSQL_PORT || 3306);
+const MYSQL_USER = (process.env.MYSQL_USER || '').trim();
+const MYSQL_PASSWORD = (process.env.MYSQL_PASSWORD || '').trim();
+const MYSQL_DATABASE = (process.env.MYSQL_DATABASE || 'my_netflix').trim();
 const CLOUDINARY_CLOUD_NAME = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
 const CLOUDINARY_API_KEY = (process.env.CLOUDINARY_API_KEY || '').trim();
 const CLOUDINARY_API_SECRET = (process.env.CLOUDINARY_API_SECRET || '').trim();
 
-const hasMongo = !!MONGO_URI;
+const hasMySql = !!MYSQL_URL || !!(MYSQL_HOST && MYSQL_USER && MYSQL_DATABASE);
+const hasMongo = !!MONGO_URI && !hasMySql;
 const hasCloudinary = !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
-const useCloudStorage = hasMongo && hasCloudinary;
+const useCloudStorage = (hasMongo || hasMySql) && hasCloudinary;
 
 // Allow persistent storage root on cloud hosts (for example, a mounted disk).
 const storageRoot = process.env.DATA_ROOT
@@ -35,7 +43,7 @@ if (!useCloudStorage) {
   });
 }
 
-if (!hasMongo) {
+if (!hasMongo && !hasMySql) {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
   if (!fs.existsSync(dataFile)) {
@@ -55,6 +63,7 @@ if (hasCloudinary) {
 }
 
 let mongoClient = null;
+let mysqlPool = null;
 let profilesCol = null;
 let mediaCol = null;
 
@@ -124,6 +133,49 @@ function normalizeMedia(item) {
 }
 
 async function initDataLayer() {
+  if (hasMySql) {
+    mysqlPool = MYSQL_URL
+      ? mysql.createPool(MYSQL_URL)
+      : mysql.createPool({
+          host: MYSQL_HOST,
+          port: MYSQL_PORT,
+          user: MYSQL_USER,
+          password: MYSQL_PASSWORD,
+          database: MYSQL_DATABASE,
+          waitForConnections: true,
+          connectionLimit: 10
+        });
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(30) NOT NULL,
+        color VARCHAR(20) NOT NULL,
+        emoji VARCHAR(16) NOT NULL,
+        createdAt VARCHAR(40) NOT NULL
+      )
+    `);
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS media (
+        id VARCHAR(64) PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        type VARCHAR(10) NOT NULL,
+        isFavorite TINYINT(1) NOT NULL DEFAULT 0,
+        profileId VARCHAR(64) NOT NULL,
+        filename VARCHAR(255) NOT NULL,
+        originalname VARCHAR(255) NOT NULL,
+        url TEXT NOT NULL,
+        cloudinaryPublicId VARCHAR(255) NOT NULL DEFAULT '',
+        cloudinaryResourceType VARCHAR(40) NOT NULL DEFAULT '',
+        size BIGINT NOT NULL,
+        uploadedAt VARCHAR(40) NOT NULL,
+        INDEX idx_media_profile_uploaded (profileId, uploadedAt)
+      )
+    `);
+    return;
+  }
+
   if (hasMongo) {
     mongoClient = new MongoClient(MONGO_URI);
     await mongoClient.connect();
@@ -139,6 +191,13 @@ async function initDataLayer() {
 }
 
 async function getProfilesData() {
+  if (hasMySql) {
+    const [rows] = await mysqlPool.query(
+      'SELECT id, name, color, emoji, createdAt FROM profiles ORDER BY createdAt ASC'
+    );
+    return rows;
+  }
+
   if (!hasMongo) {
     return readProfiles().profiles || [];
   }
@@ -147,6 +206,17 @@ async function getProfilesData() {
 }
 
 async function createProfileData(profile) {
+  if (hasMySql) {
+    const [rows] = await mysqlPool.query('SELECT COUNT(*) AS cnt FROM profiles');
+    if (rows[0].cnt >= 5) return { error: 'Maximum 5 profiles allowed.' };
+
+    await mysqlPool.query(
+      'INSERT INTO profiles (id, name, color, emoji, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [profile.id, profile.name, profile.color, profile.emoji, profile.createdAt]
+    );
+    return { profile };
+  }
+
   if (!hasMongo) {
     const data = readProfiles();
     if ((data.profiles || []).length >= 5) return { error: 'Maximum 5 profiles allowed.' };
@@ -162,6 +232,25 @@ async function createProfileData(profile) {
 }
 
 async function getMediaData(profileId) {
+  if (hasMySql) {
+    const [rows] = profileId
+      ? await mysqlPool.query(
+          `SELECT id, title, type, isFavorite, profileId, filename, originalname, url,
+                  cloudinaryPublicId, cloudinaryResourceType, size, uploadedAt
+           FROM media
+           WHERE profileId = ?
+           ORDER BY uploadedAt DESC`,
+          [profileId]
+        )
+      : await mysqlPool.query(
+          `SELECT id, title, type, isFavorite, profileId, filename, originalname, url,
+                  cloudinaryPublicId, cloudinaryResourceType, size, uploadedAt
+           FROM media
+           ORDER BY uploadedAt DESC`
+        );
+    return rows.map(normalizeMedia);
+  }
+
   if (!hasMongo) {
     const data = readData();
     const source = data.items || [];
@@ -192,6 +281,29 @@ async function deleteCloudAsset(item) {
 }
 
 async function deleteProfileData(profileId) {
+  if (hasMySql) {
+    const [profiles] = await mysqlPool.query('SELECT id FROM profiles WHERE id = ?', [profileId]);
+    if (!profiles.length) return { notFound: true };
+
+    const [profileMedia] = await mysqlPool.query(
+      `SELECT id, title, type, isFavorite, profileId, filename, originalname, url,
+              cloudinaryPublicId, cloudinaryResourceType, size, uploadedAt
+       FROM media
+       WHERE profileId = ?`,
+      [profileId]
+    );
+
+    if (useCloudStorage) {
+      for (const item of profileMedia) await deleteCloudAsset(item);
+    } else {
+      for (const item of profileMedia) deleteLocalFile(item);
+    }
+
+    await mysqlPool.query('DELETE FROM media WHERE profileId = ?', [profileId]);
+    await mysqlPool.query('DELETE FROM profiles WHERE id = ?', [profileId]);
+    return { success: true };
+  }
+
   if (!hasMongo) {
     const profileData = readProfiles();
     const profileIdx = profileData.profiles.findIndex(p => p.id === profileId);
@@ -248,6 +360,30 @@ async function uploadToCloudinary(file, type) {
 }
 
 async function saveMediaItem(item) {
+  if (hasMySql) {
+    await mysqlPool.query(
+      `INSERT INTO media
+      (id, title, type, isFavorite, profileId, filename, originalname, url,
+       cloudinaryPublicId, cloudinaryResourceType, size, uploadedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        item.id,
+        item.title,
+        item.type,
+        item.isFavorite ? 1 : 0,
+        item.profileId,
+        item.filename,
+        item.originalname,
+        item.url,
+        item.cloudinaryPublicId || '',
+        item.cloudinaryResourceType || '',
+        item.size,
+        item.uploadedAt
+      ]
+    );
+    return;
+  }
+
   if (!hasMongo) {
     const data = readData();
     data.items.unshift(item);
@@ -258,6 +394,23 @@ async function saveMediaItem(item) {
 }
 
 async function setFavorite(itemId, profileId, isFavorite) {
+  if (hasMySql) {
+    const [rows] = await mysqlPool.query(
+      `SELECT id, title, type, isFavorite, profileId, filename, originalname, url,
+              cloudinaryPublicId, cloudinaryResourceType, size, uploadedAt
+       FROM media
+       WHERE id = ?`,
+      [itemId]
+    );
+    if (!rows.length) return { notFound: true };
+
+    const item = normalizeMedia(rows[0]);
+    if (profileId && item.profileId !== profileId) return { forbidden: true };
+
+    await mysqlPool.query('UPDATE media SET isFavorite = ? WHERE id = ?', [isFavorite ? 1 : 0, itemId]);
+    return { item: normalizeMedia({ ...item, isFavorite }) };
+  }
+
   if (!hasMongo) {
     const data = readData();
     const item = (data.items || []).find(i => i.id === itemId);
@@ -277,6 +430,26 @@ async function setFavorite(itemId, profileId, isFavorite) {
 }
 
 async function deleteMediaItem(itemId, profileId) {
+  if (hasMySql) {
+    const [rows] = await mysqlPool.query(
+      `SELECT id, title, type, isFavorite, profileId, filename, originalname, url,
+              cloudinaryPublicId, cloudinaryResourceType, size, uploadedAt
+       FROM media
+       WHERE id = ?`,
+      [itemId]
+    );
+    if (!rows.length) return { notFound: true };
+
+    const item = normalizeMedia(rows[0]);
+    if (profileId && item.profileId !== profileId) return { forbidden: true };
+
+    if (useCloudStorage) await deleteCloudAsset(item);
+    else deleteLocalFile(item);
+
+    await mysqlPool.query('DELETE FROM media WHERE id = ?', [itemId]);
+    return { success: true };
+  }
+
   if (!hasMongo) {
     const data = readData();
     const idx = (data.items || []).findIndex(i => i.id === itemId);
@@ -452,7 +625,7 @@ initDataLayer()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`My Netflix is running at http://localhost:${PORT}`);
-      console.log(hasMongo ? 'Data layer: MongoDB' : 'Data layer: JSON files');
+      console.log(hasMySql ? 'Data layer: MySQL' : (hasMongo ? 'Data layer: MongoDB' : 'Data layer: JSON files'));
       console.log(useCloudStorage ? 'File storage: Cloudinary' : 'File storage: Local uploads directory');
     });
   })
