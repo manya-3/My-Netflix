@@ -14,3 +14,13 @@ services:
         sync: false
       - key: DATA_ROOT
         value: /var/data/netflix
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: my_netflix
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
