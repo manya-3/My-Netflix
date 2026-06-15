@@ -10,6 +10,8 @@ services:
       mountPath: /var/data/netflix
       sizeGB: 1
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
       - key: APP_PASSWORD
         sync: false
       - key: DATA_ROOT
